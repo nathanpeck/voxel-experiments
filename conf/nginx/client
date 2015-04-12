@@ -1,0 +1,19 @@
+# Serve the static files of the game client on port 8080
+server {
+  listen 8080 default_server;
+  listen [::]:8080 default_server ipv6only=on;
+
+  root /vagrant/client;
+  index index.html index.htm;
+
+  # Make site accessible from http://localhost/
+  server_name localhost;
+
+  location / {
+    # First attempt to serve request as file, then
+    # as directory, then fall back to displaying a 404.
+    try_files $uri $uri/ =404;
+    # Uncomment to enable naxsi on this location
+    # include /etc/nginx/naxsi.rules
+  }
+}
