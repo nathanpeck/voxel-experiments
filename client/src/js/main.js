@@ -8,23 +8,63 @@ animate();
 function generateRandomWorld() {
   var world = {
     dimensions: 50,
-    tileSize: 50,
+    tileSize: 100,
     matrix: []
   };
 
-  for (var row = 0; row < world.dimensions; row++) {
+  ROT.RNG.setSeed(new Date().getTime());
+  var map = new ROT.Map.Digger(world.dimensions, world.dimensions);
+  map.create();
+  rooms = map.getRooms();
+
+  var row, col;
+
+  for (row = 0; row < world.dimensions; row++) {
     world.matrix[row] = [];
-    for (var column = 0; column < world.dimensions; column++) {
-      if (Math.random() < 0.3) {
-        // Filled brick
-        world.matrix[row][column] = 1;
-      }
-      else {
-        // Open space.
-        world.matrix[row][column] = 0;
-      }
+    for (column = 0; column < world.dimensions; column++) {
+      world.matrix[row][column] = 0;
     }
   }
+
+  rooms.forEach(function (room) {
+    for (row = room.getTop(); row <= room.getBottom(); row++) {
+      for (col = room.getLeft(); col <= room.getRight(); col++) {
+        world.matrix[row-1][col-1] = 1;
+      }
+    }
+
+    room.getDoors(function (col, row) {
+      world.matrix[row-1][col-1] = 1;
+    });
+  });
+
+  var corridors = map.getCorridors();
+
+  corridors.forEach(function (corridor) {
+    var startX, startY, endX, endY;
+    if (corridor._endX > corridor._startX) {
+      startX = corridor._startX;
+      endX = corridor._endX;
+    }
+    else {
+      startX = corridor._endX;
+      endX = corridor._startX;
+    }
+    if (corridor._endY > corridor._startY) {
+      startY = corridor._startY;
+      endY = corridor._endY;
+    }
+    else {
+      startY = corridor._endY;
+      endY = corridor._startY;
+    }
+
+    for (col = startX; col <= endX; col++) {
+      for (row = startY; row <= endY; row++) {
+        world.matrix[row-1][col-1] = 1;
+      }
+    }
+  });
 
   return world;
 }
@@ -49,6 +89,7 @@ function attachGrid(scene, world) {
 // Adds wall geometry to the scene.
 function attachWalls(scene, world) {
   var geometry = new THREE.BoxGeometry(world.tileSize, world.tileSize, world.tileSize);
+  //var geometry = new THREE.BoxGeometry(world.tileSize, world.tileSize, world.tileSize);
   var material = new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading, overdraw: 0.5 } );
 
   var currentY, currentZ;
@@ -59,9 +100,9 @@ function attachWalls(scene, world) {
 
       if (world.matrix[row][column]) {
         var cube = new THREE.Mesh( geometry, material );
-        cube.position.x = currentY + 25;
-        cube.position.y = 25;
-        cube.position.z = currentZ + 25;
+        cube.position.x = currentY + world.tileSize/2;
+        cube.position.y = world.tileSize/2;
+        cube.position.z = currentZ + world.tileSize/2;
 
         scene.add(cube);
       }
@@ -121,6 +162,33 @@ function init() {
   stats.domElement.style.top = '0px';
   container.appendChild(stats.domElement);
 
+  window.addEventListener("keydown", function(e) {
+    if (e.keyCode) {
+      if (e.keyCode == 37) {
+        // Left
+        console.log('left');
+        camera.position.x -= 100;
+      }
+      else if (e.keyCode == 38) {
+        // Up
+        console.log('up');
+        camera.position.z -= 100;
+      }
+      else if (e.keyCode == 39) {
+        // Right
+        console.log('right');
+        camera.position.x += 100;
+      }
+      else if (e.keyCode == 40) {
+        // Down
+        console.log('down');
+        camera.position.z += 100;
+      }
+    }
+  });
+
+  camera.lookAt(scene.position);
+
   window.addEventListener('resize', onWindowResize, false);
 }
 
@@ -142,6 +210,5 @@ function animate() {
 }
 
 function render() {
-  camera.lookAt(scene.position);
   renderer.render(scene, camera);
 }
