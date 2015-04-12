@@ -39,10 +39,5 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       end
   end
 
-  require 'socket'
-  socket_ip = Socket.ip_address_list.detect { |intf| intf.ipv4_private? }
-  ip = socket_ip.ip_address if socket_ip
-  ip ||= "127.0.0.1"
-
-  config.vm.provision :shell, path: "guest.sh", args: "#{ip}"
+  config.vm.provision :shell, path: "guest.sh", privileged: false
 end
