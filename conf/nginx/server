@@ -1,7 +1,7 @@
 # Proxy incoming requests on port 8081 to the server process
 
-upstream nodejs {
-    server 127.0.0.1:5000;
+upstream beefy {
+    server 127.0.0.1:5001;
     keepalive 256;
 }
 
@@ -9,7 +9,7 @@ server {
     listen 8081;
 
     location / {
-        proxy_pass  http://nodejs;
+        proxy_pass  http://beefy;
         proxy_set_header   Connection "";
         proxy_http_version 1.1;
         proxy_set_header        Host            $host;

@@ -25,9 +25,4 @@ sudo n 0.12.2
 
 # Install bower
 echo "Installing bower via npm, may take a few moments...."
-sudo npm install -g bower
-
-# Install bower dependencies needed by the client
-cd /vagrant/client; bower install
-
-echo "Vagrant ready. Access server at htp://localhost:8080, or SSH in using: `vagrant ssh`"
+sudo npm install -g beefy browserify

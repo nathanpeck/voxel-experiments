@@ -1,17 +1,19 @@
-# Serve the static files of the game client on port 8080
+# Proxy incoming requests on port 8081 to the server process
+
+upstream api {
+    server 127.0.0.1:5000;
+    keepalive 256;
+}
+
 server {
-  listen 8080 default_server;
-  listen [::]:8080 default_server ipv6only=on;
+    listen 8080;
 
-  root /vagrant/client;
-  index index.html index.htm;
-
-  # Make site accessible from http://localhost/
-  server_name localhost;
-
-  location / {
-    # First attempt to serve request as file, then
-    # as directory, then fall back to displaying a 404.
-    try_files $uri $uri/ =404;
-  }
+    location / {
+        proxy_pass  http://api;
+        proxy_set_header   Connection "";
+        proxy_http_version 1.1;
+        proxy_set_header        Host            $host;
+        proxy_set_header        X-Real-IP       $remote_addr;
+        proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
 }

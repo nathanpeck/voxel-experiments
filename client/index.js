@@ -1,3 +1,10 @@
+var THREE = require('three');
+var VoxelMesh = require('voxel-mesh');
+var ROT = require('rot-js');
+require('./src/dependencies/three.js/CanvasRenderer.js')(THREE);
+require('./src/dependencies/three.js/Projector.js')(THREE);
+var Stats = require('./src/dependencies/three.js/Stats.js');
+
 var container, stats;
 var camera, scene, renderer;
 
@@ -8,7 +15,7 @@ animate();
 function generateRandomWorld() {
   var world = {
     dimensions: 50,
-    tileSize: 100,
+    tileSize: 80,
     matrix: []
   };
 
@@ -165,23 +172,24 @@ function init() {
   window.addEventListener("keydown", function(e) {
     if (e.keyCode) {
       if (e.keyCode == 37) {
+        new TWEEN.Tween( camera.position ).to( {
+          x: camera.position.x - 100,
+          y: position.y,
+          z: position.z}, 600 )
+        .easing( TWEEN.Easing.Sinusoidal.EaseInOut).start();
         // Left
-        console.log('left');
-        camera.position.x -= 100;
+        //camera.position.x -= 100;
       }
       else if (e.keyCode == 38) {
         // Up
-        console.log('up');
         camera.position.z -= 100;
       }
       else if (e.keyCode == 39) {
         // Right
-        console.log('right');
         camera.position.x += 100;
       }
       else if (e.keyCode == 40) {
         // Down
-        console.log('down');
         camera.position.z += 100;
       }
     }
