@@ -6,6 +6,7 @@ var ROT       = require('rot-js');
 function generateRandomWorld() {
   var world = {
     dimensions: 50,
+    tileSize: 10,
     matrix: []
   };
 
@@ -73,7 +74,7 @@ var world = generateRandomWorld();
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
 
-var renderer = new THREE.WebGLRenderer();
+var renderer = new THREE.WebGLRenderer({ antialiasing: true });
 renderer.shadowMapEnabled = true;
 //renderer.shadowMapCullFace = THREE.CullFaceBack;
 renderer.setClearColor( 0xffffff );
@@ -83,13 +84,13 @@ document.body.appendChild( renderer.domElement );
 
 // Put in the floor
 var floor = new THREE.Mesh(
-  new THREE.CubeGeometry(world.dimensions, world.dimensions, 1),
+  new THREE.CubeGeometry(world.dimensions * world.tileSize, world.dimensions * world.tileSize, world.tileSize),
   new THREE.MeshLambertMaterial({color: 0x4F4F4F})
 );
 floor.receiveShadow = true;
 floor.castShadow = true;
-floor.position.x = world.dimensions/2;
-floor.position.y = world.dimensions/2;
+floor.position.x = (world.dimensions*world.tileSize)/2;
+floor.position.y = (world.dimensions*world.tileSize)/2;
 scene.add(floor);
 
 
@@ -107,23 +108,24 @@ var material = new THREE.MeshLambertMaterial({
   color: 0x808080
 });
 var walls = voxelMesh.createSurfaceMesh(material);
+walls.scale.set(world.tileSize,world.tileSize,world.tileSize);
 walls.castShadow = true;
 walls.receiveShadow = true;
 scene.add(walls);
 
-camera.position.z = 30;
-camera.position.x = 25;
-camera.position.y = 25;
+camera.position.z = 25 * world.tileSize;
+camera.position.x = 25 * world.tileSize;
+camera.position.y = 25 * world.tileSize;
 
 var ambientLight = new THREE.AmbientLight(0x202020);
 scene.add(ambientLight);
 
 var light = new THREE.DirectionalLight(0xFFFFFF);
-light.position.set(50, 50, 400);
-light.target.position.set(0, 50, 0);
+light.position.set(50 * world.tileSize, 50 * world.tileSize, 400);
+light.target.position.set(0, 50 * world.tileSize, 0);
 light.castShadow = true;
-light.shadowMapWidth = 10048;
-light.shadowMapHeight = 10048;
+light.shadowMapWidth = 4048;
+light.shadowMapHeight = 4048;
 light.shadowBias = 0.0001;
 light.shadowMapCullFace = THREE.CullFaceBack;
 light.shadowDarkness = 0.3;
@@ -133,7 +135,7 @@ light.shadowMapType = THREE.PCFShadowMap;
 light.shadowMapSoft = true;
 
 light.shadowCameraNear = 0;
-light.shadowCameraFar = 600;
+light.shadowCameraFar = 800;
 light.shadowCameraFov = 100;
 scene.add(light);
 
@@ -148,16 +150,16 @@ render();
 window.addEventListener("keydown", function(e) {
   if (e.keyCode) {
     if (e.keyCode == 37) {
-      camera.position.x -= 1;
+      camera.position.x -= world.tileSize;
     }
     else if (e.keyCode == 38) {
-      camera.position.y += 1;
+      camera.position.y += world.tileSize;
     }
     else if (e.keyCode == 39) {
-      camera.position.x += 1;
+      camera.position.x += world.tileSize;
     }
     else if (e.keyCode == 40) {
-      camera.position.y -= 1;
+      camera.position.y -= world.tileSize;
     }
   }
 });
