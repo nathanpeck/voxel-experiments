@@ -72,10 +72,25 @@ function generateRandomWorld() {
 var world = generateRandomWorld();
 
 var scene = new THREE.Scene();
-var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+//var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 50*world.tileSize );
+camera = new THREE.OrthographicCamera(
+  window.innerWidth / - 2,
+  window.innerWidth / 2,
+  window.innerHeight / 2,
+  window.innerHeight / -2,
+  0.1, 150*world.tileSize
+);
+camera.position.z = 35 * world.tileSize;
+camera.position.x = 0 * world.tileSize;
+camera.position.y = 0 * world.tileSize;
+camera.zoom = 4;
+camera.up = new THREE.Vector3(0,0,1);
+camera.lookAt(new THREE.Vector3(25 * world.tileSize,25 * world.tileSize,0));
+camera.updateProjectionMatrix();
 
 var renderer = new THREE.WebGLRenderer({ antialiasing: true });
 renderer.shadowMapEnabled = true;
+renderer.shadowMapSoft = true;
 //renderer.shadowMapCullFace = THREE.CullFaceBack;
 renderer.setClearColor( 0xffffff );
 renderer.setSize( window.innerWidth, window.innerHeight );
@@ -95,7 +110,7 @@ scene.add(floor);
 
 
 var voxelData = Voxel.generate([0,0,0], [world.dimensions, world.dimensions, 2], function(x,y,z) {
-  if (z == 0 || z == 1) {
+  if (z == 0) {
     return world.matrix[y][x]
   }
   else {
@@ -113,19 +128,15 @@ walls.castShadow = true;
 walls.receiveShadow = true;
 scene.add(walls);
 
-camera.position.z = 25 * world.tileSize;
-camera.position.x = 25 * world.tileSize;
-camera.position.y = 25 * world.tileSize;
-
 var ambientLight = new THREE.AmbientLight(0x202020);
 scene.add(ambientLight);
 
 var light = new THREE.DirectionalLight(0xFFFFFF);
-light.position.set(50 * world.tileSize, 50 * world.tileSize, 400);
+light.position.set(50 * world.tileSize, 50 * world.tileSize, 600*world.tileSize);
 light.target.position.set(0, 50 * world.tileSize, 0);
 light.castShadow = true;
-light.shadowMapWidth = 4048;
-light.shadowMapHeight = 4048;
+light.shadowMapWidth = 8048;
+light.shadowMapHeight = 8048;
 light.shadowBias = 0.0001;
 light.shadowMapCullFace = THREE.CullFaceBack;
 light.shadowDarkness = 0.3;
@@ -134,9 +145,9 @@ light.shadowDarkness = 0.3;
 light.shadowMapType = THREE.PCFShadowMap;
 light.shadowMapSoft = true;
 
-light.shadowCameraNear = 0;
-light.shadowCameraFar = 800;
-light.shadowCameraFov = 100;
+light.shadowCameraNear = 400 * world.tileSize;
+light.shadowCameraFar = 800 * world.tileSize;
+light.shadowCameraFov = 100 * world.tileSize;
 scene.add(light);
 
 var render = function () {
@@ -163,3 +174,18 @@ window.addEventListener("keydown", function(e) {
     }
   }
 });
+
+var handleScroll = function(evt){
+  if (!evt) evt = event;
+  var direction = (evt.detail<0 || evt.wheelDelta>0) ? 1 : -1;
+  if (direction == -1) {
+    camera.zoom *= 1.1;
+    camera.updateProjectionMatrix();
+  }
+  else {
+    camera.zoom /= 1.1;
+    camera.updateProjectionMatrix();
+  }
+};
+window.addEventListener('DOMMouseScroll',handleScroll,false); // for Firefox
+window.addEventListener('mousewheel',    handleScroll,false); // for everyone else
