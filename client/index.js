@@ -75,16 +75,7 @@ var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeig
 
 var renderer = new THREE.WebGLRenderer();
 renderer.shadowMapEnabled = true;
-renderer.shadowMapSoft = true;
-
-renderer.shadowCameraNear = 3;
-renderer.shadowCameraFar = camera.far;
-renderer.shadowCameraFov = 50;
-
-renderer.shadowMapBias = 0.0039;
-renderer.shadowMapDarkness = 0.5;
-renderer.shadowMapWidth = 1024;
-renderer.shadowMapHeight = 1024;
+//renderer.shadowMapCullFace = THREE.CullFaceBack;
 renderer.setClearColor( 0xffffff );
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
@@ -96,26 +87,29 @@ var floor = new THREE.Mesh(
   new THREE.MeshLambertMaterial({color: 0x4F4F4F})
 );
 floor.receiveShadow = true;
+floor.castShadow = true;
 floor.position.x = world.dimensions/2;
 floor.position.y = world.dimensions/2;
 scene.add(floor);
 
 
 var voxelData = Voxel.generate([0,0,0], [world.dimensions, world.dimensions, 2], function(x,y,z) {
-  if (z == 1) {
+  if (z == 0 || z == 1) {
     return world.matrix[y][x]
+  }
+  else {
+    return 0;
   }
 })
 
 var voxelMesh = new VoxelMesh(voxelData, Voxel.meshers.greedy, THREE.Vector3(1, 1, 1), THREE);
 var material = new THREE.MeshLambertMaterial({
-  color: 0x808080,
-  overdraw: 0.5
+  color: 0x808080
 });
-var wireMesh = voxelMesh.createSurfaceMesh(material);
-wireMesh.castShadow = true;
-wireMesh.receiveShadow = true;
-scene.add(wireMesh);
+var walls = voxelMesh.createSurfaceMesh(material);
+walls.castShadow = true;
+walls.receiveShadow = true;
+scene.add(walls);
 
 camera.position.z = 30;
 camera.position.x = 25;
@@ -124,13 +118,24 @@ camera.position.y = 25;
 var ambientLight = new THREE.AmbientLight(0x202020);
 scene.add(ambientLight);
 
-var directionalLightOne = new THREE.DirectionalLight(0xFFFFFF);
-directionalLightOne.position.x = 1;
-directionalLightOne.position.y = 1;
-directionalLightOne.position.z = 10;
-directionalLightOne.position.normalize();
-directionalLightOne.castShadow = true;
-scene.add(directionalLightOne);
+var light = new THREE.DirectionalLight(0xFFFFFF);
+light.position.set(50, 50, 400);
+light.target.position.set(0, 50, 0);
+light.castShadow = true;
+light.shadowMapWidth = 10048;
+light.shadowMapHeight = 10048;
+light.shadowBias = 0.0001;
+light.shadowMapCullFace = THREE.CullFaceBack;
+light.shadowDarkness = 0.3;
+//light.shadowCameraVisible = true; // only for debugging
+
+light.shadowMapType = THREE.PCFShadowMap;
+light.shadowMapSoft = true;
+
+light.shadowCameraNear = 0;
+light.shadowCameraFar = 600;
+light.shadowCameraFov = 100;
+scene.add(light);
 
 var render = function () {
   requestAnimationFrame( render );
