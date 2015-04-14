@@ -1,26 +1,18 @@
-var THREE = require('three');
-var VoxelMesh = require('voxel-mesh');
-var ROT = require('rot-js');
-require('./src/dependencies/three.js/CanvasRenderer.js')(THREE);
-require('./src/dependencies/three.js/Projector.js')(THREE);
-var Stats = require('./src/dependencies/three.js/Stats.js');
+var THREE     = require('three');
+var Voxel     = require('voxel');
+var VoxelMesh = require('./src/dependencies/voxel-mesh.js');
+var ROT       = require('rot-js');
 
-var container, stats;
-var camera, scene, renderer;
-
-init();
-animate();
-
-// Generate a random world.
 function generateRandomWorld() {
   var world = {
     dimensions: 50,
-    tileSize: 80,
     matrix: []
   };
 
   ROT.RNG.setSeed(new Date().getTime());
-  var map = new ROT.Map.Digger(world.dimensions, world.dimensions);
+  var map = new ROT.Map.Digger(world.dimensions, world.dimensions, {
+    dugPercentage: .7
+  });
   map.create();
   rooms = map.getRooms();
 
@@ -29,19 +21,19 @@ function generateRandomWorld() {
   for (row = 0; row < world.dimensions; row++) {
     world.matrix[row] = [];
     for (column = 0; column < world.dimensions; column++) {
-      world.matrix[row][column] = 0;
+      world.matrix[row][column] = 1;
     }
   }
 
   rooms.forEach(function (room) {
     for (row = room.getTop(); row <= room.getBottom(); row++) {
       for (col = room.getLeft(); col <= room.getRight(); col++) {
-        world.matrix[row-1][col-1] = 1;
+        world.matrix[row][col] = 0;
       }
     }
 
     room.getDoors(function (col, row) {
-      world.matrix[row-1][col-1] = 1;
+      world.matrix[row][col] = 0;
     });
   });
 
@@ -68,7 +60,7 @@ function generateRandomWorld() {
 
     for (col = startX; col <= endX; col++) {
       for (row = startY; row <= endY; row++) {
-        world.matrix[row-1][col-1] = 1;
+        world.matrix[row][col] = 0;
       }
     }
   });
@@ -76,147 +68,91 @@ function generateRandomWorld() {
   return world;
 }
 
-// Adds gridlines to the scene.
-function attachGrid(scene, world) {
-  var gridSize = (world.tileSize * world.dimensions / 2);
-  var geometry = new THREE.Geometry();
-  for(var i = -gridSize; i <= gridSize; i += world.tileSize) {
-    geometry.vertices.push(new THREE.Vector3(-gridSize, 0, i));
-    geometry.vertices.push(new THREE.Vector3( gridSize, 0, i));
+var world = generateRandomWorld();
 
-    geometry.vertices.push(new THREE.Vector3(i, 0, -gridSize));
-    geometry.vertices.push(new THREE.Vector3(i, 0,  gridSize));
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+
+var renderer = new THREE.WebGLRenderer();
+renderer.shadowMapEnabled = true;
+renderer.shadowMapSoft = true;
+
+renderer.shadowCameraNear = 3;
+renderer.shadowCameraFar = camera.far;
+renderer.shadowCameraFov = 50;
+
+renderer.shadowMapBias = 0.0039;
+renderer.shadowMapDarkness = 0.5;
+renderer.shadowMapWidth = 1024;
+renderer.shadowMapHeight = 1024;
+renderer.setClearColor( 0xffffff );
+renderer.setSize( window.innerWidth, window.innerHeight );
+document.body.appendChild( renderer.domElement );
+
+
+// Put in the floor
+var floor = new THREE.Mesh(
+  new THREE.CubeGeometry(world.dimensions, world.dimensions, 1),
+  new THREE.MeshLambertMaterial({color: 0x4F4F4F})
+);
+floor.receiveShadow = true;
+floor.position.x = world.dimensions/2;
+floor.position.y = world.dimensions/2;
+scene.add(floor);
+
+
+var voxelData = Voxel.generate([0,0,0], [world.dimensions, world.dimensions, 2], function(x,y,z) {
+  if (z == 1) {
+    return world.matrix[y][x]
   }
+})
 
-  var gridlineMaterial = new THREE.LineBasicMaterial( { color: 0x000000, opacity: 0.2 } );
-  var grid = new THREE.Line( geometry, gridlineMaterial, THREE.LinePieces );
-  scene.add(grid);
-}
+var voxelMesh = new VoxelMesh(voxelData, Voxel.meshers.greedy, THREE.Vector3(1, 1, 1), THREE);
+var material = new THREE.MeshLambertMaterial({
+  color: 0x808080,
+  overdraw: 0.5
+});
+var wireMesh = voxelMesh.createSurfaceMesh(material);
+wireMesh.castShadow = true;
+wireMesh.receiveShadow = true;
+scene.add(wireMesh);
 
-// Adds wall geometry to the scene.
-function attachWalls(scene, world) {
-  var geometry = new THREE.BoxGeometry(world.tileSize, world.tileSize, world.tileSize);
-  //var geometry = new THREE.BoxGeometry(world.tileSize, world.tileSize, world.tileSize);
-  var material = new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading, overdraw: 0.5 } );
+camera.position.z = 30;
+camera.position.x = 25;
+camera.position.y = 25;
 
-  var currentY, currentZ;
-  for (var row = 0; row < world.dimensions; row++) {
-    currentY = -(world.tileSize * world.dimensions / 2) + (row * world.tileSize);
-    for (var column = 0; column < world.dimensions; column++) {
-      currentZ = -(world.tileSize * world.dimensions / 2) + (column * world.tileSize);
+var ambientLight = new THREE.AmbientLight(0x202020);
+scene.add(ambientLight);
 
-      if (world.matrix[row][column]) {
-        var cube = new THREE.Mesh( geometry, material );
-        cube.position.x = currentY + world.tileSize/2;
-        cube.position.y = world.tileSize/2;
-        cube.position.z = currentZ + world.tileSize/2;
+var directionalLightOne = new THREE.DirectionalLight(0xFFFFFF);
+directionalLightOne.position.x = 1;
+directionalLightOne.position.y = 1;
+directionalLightOne.position.z = 10;
+directionalLightOne.position.normalize();
+directionalLightOne.castShadow = true;
+scene.add(directionalLightOne);
 
-        scene.add(cube);
-      }
-    }
-  }
-}
-
-// Add lights to the scene.
-function attachLighting(scene) {
-  var ambientLight = new THREE.AmbientLight(0xb00000);
-  scene.add(ambientLight);
-
-  var directionalLightOne = new THREE.DirectionalLight(0xf48904);
-  directionalLightOne.position.x = -0.4487526705580578;
-  directionalLightOne.position.y = 0.6113634376366548;
-  directionalLightOne.position.z = 0.6518096254184219;
-  directionalLightOne.position.normalize();
-  scene.add(directionalLightOne);
-
-  var directionalLightTwo = new THREE.DirectionalLight(0xcdae3e);
-  directionalLightTwo.position.x = 0.9335272125194505;
-  directionalLightTwo.position.y = 0.3286791567439238;
-  directionalLightTwo.position.z = -0.1431675780607048;
-  directionalLightTwo.position.normalize();
-  scene.add(directionalLightTwo);
-}
-
-function init() {
-  var world = generateRandomWorld();
-
-  container = document.createElement('div');
-  document.body.appendChild(container);
-
-  // Create the camera
-  camera = new THREE.OrthographicCamera(window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, - 500, 1000);
-  camera.position.x = 200;
-  camera.position.y = 500;
-  camera.position.z = 200;
-
-  // Fill the scene.
-  scene = new THREE.Scene();
-
-  attachGrid(scene, world);
-  attachWalls(scene, world);
-  attachLighting(scene, world);
-
-  // Put a canvas render in the page.
-  renderer = new THREE.CanvasRenderer();
-  renderer.setClearColor(0xF2F6F0);
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  container.appendChild(renderer.domElement);
-
-  // Put a FPS stat gauge in the page.
-  stats = new Stats();
-  stats.domElement.style.position = 'absolute';
-  stats.domElement.style.top = '0px';
-  container.appendChild(stats.domElement);
-
-  window.addEventListener("keydown", function(e) {
-    if (e.keyCode) {
-      if (e.keyCode == 37) {
-        new TWEEN.Tween( camera.position ).to( {
-          x: camera.position.x - 100,
-          y: position.y,
-          z: position.z}, 600 )
-        .easing( TWEEN.Easing.Sinusoidal.EaseInOut).start();
-        // Left
-        //camera.position.x -= 100;
-      }
-      else if (e.keyCode == 38) {
-        // Up
-        camera.position.z -= 100;
-      }
-      else if (e.keyCode == 39) {
-        // Right
-        camera.position.x += 100;
-      }
-      else if (e.keyCode == 40) {
-        // Down
-        camera.position.z += 100;
-      }
-    }
-  });
-
-  camera.lookAt(scene.position);
-
-  window.addEventListener('resize', onWindowResize, false);
-}
-
-function onWindowResize() {
-  camera.left = window.innerWidth / - 2;
-  camera.right = window.innerWidth / 2;
-  camera.top = window.innerHeight / 2;
-  camera.bottom = window.innerHeight / - 2;
-
-  camera.updateProjectionMatrix();
-
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-function animate() {
-  requestAnimationFrame(animate);
-  render();
-  stats.update();
-}
-
-function render() {
+var render = function () {
+  requestAnimationFrame( render );
   renderer.render(scene, camera);
-}
+};
+
+render();
+
+
+window.addEventListener("keydown", function(e) {
+  if (e.keyCode) {
+    if (e.keyCode == 37) {
+      camera.position.x -= 1;
+    }
+    else if (e.keyCode == 38) {
+      camera.position.y += 1;
+    }
+    else if (e.keyCode == 39) {
+      camera.position.x += 1;
+    }
+    else if (e.keyCode == 40) {
+      camera.position.y -= 1;
+    }
+  }
+});
